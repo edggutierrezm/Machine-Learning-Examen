@@ -1,0 +1,22 @@
+pip install pandas pyarrow
+# o si prefieres fastparquet:
+# pip install pandas fastparquet
+
+# LIBRERÍAS FUNDAMENTALES PARA MANEJO DE DATOS
+pandas>=2.0.0          # Manipulación y análisis de datos
+numpy>=1.24.0          # Soporte para arrays y operaciones numéricas
+scikit-learn>=1.3.0    # Preprocesamiento (MinMaxScaler, train_test_split) y métricas
+
+# LIBRERÍAS DE MODELADO (Elegimos LightGBM)
+lightgbm>=4.1.0        # Modelo de Gradient Boosting eficiente
+
+# LIBRERÍAS DE VISUALIZACIÓN Y REPORTES (Fase 4)
+matplotlib>=3.7.0      # Para gráficos y visualizaciones
+seaborn>=0.13.0        # Para gráficos estadísticos avanzados
+
+# LIBRERÍAS DE DESPLIEGUE (Fase 5 - API)
+Flask>=3.0.0           # Framework web ligero para la API [cite: 23, 24]
+gunicorn>=21.2.0       # Servidor WSGI para despliegues en producción (opcional, pero buena práctica)
+
+# LIBRERÍAS ADICIONALES
+joblib>=1.3.0          # Para guardar y cargar modelos/scalers (.pkl) [cite: 19]
