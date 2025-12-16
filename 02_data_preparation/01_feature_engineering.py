@@ -1,110 +1,159 @@
 import pandas as pd
 import numpy as np
-import gc
-from sklearn.model_selection import train_test_split
+import os
+import gc # Herramienta esencial para liberar memoria en datasets grandes
 
-# --- Funciones de Utilidad ---
+# ==========================================================
+# 📌 CONFIGURACIÓN DE RUTA Y CARGA DE DATOS
+# ==========================================================
+# Ajusta esta ruta si tus archivos Parquet no están en una carpeta 'data' al mismo nivel
+DATA_PATH = './data/'
 
-def aggregate_dataframe(df, group_vars, prefix):
-    """Calcula agregaciones básicas (mean, max, min, sum, count) para un DF."""
+def load_parquet_file(filename):
+    """Carga un archivo .parquet de forma segura."""
+    file_path = os.path.join(DATA_PATH, filename)
+    try:
+        df = pd.read_parquet(file_path)
+        print(f"Cargado: {filename}. Shape: {df.shape}")
+        return df
+    except Exception as e:
+        print(f"ERROR: No se pudo cargar {filename}. {e}")
+        return None
+
+# ==========================================================
+# 📌 UTILITY: FUNCIÓN DE AGREGACIÓN GENERAL
+# ==========================================================
+
+def aggregate_dataframe(df, group_var, prefix):
+    """Calcula agregaciones básicas (mean, max, min, sum, count) para un DF por grupo."""
     
     # 1. Agregaciones Numéricas
-    num_df = df.select_dtypes(include=np.number).drop(columns=group_vars, errors='ignore')
-    agg_num = num_df.groupby(group_vars[0]).agg(['mean', 'max', 'min', 'sum', 'count'])
+    # Excluimos la variable de agrupación
+    num_df = df.select_dtypes(include=np.number).drop(columns=[group_var], errors='ignore')
+    agg_num = num_df.groupby(group_var).agg(['mean', 'max', 'min', 'sum', 'count'])
     
-    # 2. Agregaciones Categóricas (Moda y Conteo de Valores Únicos)
-    cat_df = df.select_dtypes(include='object')
-    agg_cat = cat_df.groupby(group_vars[0]).agg(lambda x: x.mode()[0] if not x.mode().empty else np.nan)
-    agg_cat.rename(columns={col: col + '_MODE' for col in agg_cat.columns}, inplace=True)
+    # Aplanar y renombrar las columnas
+    agg_num.columns = [prefix + '_' + '_'.join(col).strip().upper() 
+                       for col in agg_num.columns.values]
     
-    # 3. Combinar y Aplanar
-    agg_df = pd.merge(agg_num, agg_cat, on=group_vars[0], how='left')
+    # 2. Agregaciones Categóricas (Opcional, se puede hacer con One-Hot Encoding del DF original)
+    # Aquí solo nos centramos en las numéricas para simplificar el flujo.
     
-    # Aplanar y renombrar
-    agg_df.columns = [prefix + '_' + '_'.join(col).strip().upper() 
-                      for col in agg_num.columns.values] + list(agg_cat.columns)
-    
-    return agg_df.reset_index()
+    return agg_num.reset_index()
 
 
-# --- Funciones de Ingeniería de Características Específicas ---
+# ==========================================================
+# 📌 FUNCIÓN CLAVE: INGENIERÍA DE FEATURES DE BURÓ
+# ==========================================================
 
 def get_bureau_features(df_app):
-    """Procesa bureau.csv y bureau_balance.csv."""
+    """
+    Procesa bureau.parquet y bureau_balance.parquet.
+    Esta es una agregación en dos etapas (Multi-nivel).
+    """
     
-    print("Iniciando Ingeniería de Bureau...")
-    bureau = pd.read_csv('bureau.csv')
-    bureau_balance = pd.read_csv('bureau_balance.csv')
+    print("\n--- Iniciando Ingeniería de Bureau ---")
+    bureau = load_parquet_file('bureau.parquet')
+    bureau_balance = load_parquet_file('bureau_balance.parquet')
     
-    # 1. Procesar bureau_balance (datos de comportamiento)
-    # Agrupar por SK_ID_BUREAU (un crédito anterior) y luego agregarlos
-    bb_agg = aggregate_dataframe(bureau_balance, ['SK_ID_BUREAU'], 'BB')
+    # ----------------------------------------------------
+    # ETAPA 1: Procesar bureau_balance (Agregación por crédito SK_ID_BUREAU)
+    # Clave de unión: SK_ID_BUREAU
+    # ----------------------------------------------------
+    
+    # Ejemplo de ingeniería en bureau_balance (tiempo de atraso y estatus)
+    bureau_balance['STATUS_C_COUNT'] = (bureau_balance['STATUS'] == 'C').astype(int)
+    
+    bb_agg = aggregate_dataframe(bureau_balance, 'SK_ID_BUREAU', 'BB')
+    
+    # Merge de las agregaciones de balance al DF de bureau
     bureau = bureau.merge(bb_agg, on='SK_ID_BUREAU', how='left')
-    del bb_agg, bureau_balance; gc.collect()
     
-    # 2. Procesar Bureau (información del crédito)
-    # Generar agregaciones por cliente (SK_ID_CURR)
-    bureau_agg = aggregate_dataframe(bureau, ['SK_ID_CURR'], 'BUREAU')
+    # Liberar memoria de los DFs intermedios
+    del bureau_balance, bb_agg; gc.collect()
     
-    # 3. Ingeniería de Características personalizadas (ej. ratio)
-    if 'BUREAU_AMT_CREDIT_SUM_SUM' in bureau_agg.columns and 'BUREAU_AMT_CREDIT_SUM_DEBT_SUM' in bureau_agg.columns:
-        bureau_agg['BUREAU_DEBT_RATIO'] = \
-            bureau_agg['BUREAU_AMT_CREDIT_SUM_DEBT_SUM'] / bureau_agg['BUREAU_AMT_CREDIT_SUM_SUM']
-            
+    # ----------------------------------------------------
+    # ETAPA 2: Procesar Bureau (Agregación por cliente SK_ID_CURR)
+    # Clave de unión: SK_ID_CURR
+    # ----------------------------------------------------
+    
+    # Ingeniería de Características Específicas del Buró
+    # Ratio de Deuda vs. Crédito Total
+    bureau['DEBT_TO_CREDIT_RATIO'] = \
+        bureau['AMT_CREDIT_SUM_DEBT'] / (bureau['AMT_CREDIT_SUM'] + 0.0001)
+        
+    # Agregación final por cliente (SK_ID_CURR)
+    bureau_agg = aggregate_dataframe(bureau, 'SK_ID_CURR', 'BUREAU')
+    
+    # ----------------------------------------------------
+    # ETAPA 3: Unión al DataFrame Principal
+    # ----------------------------------------------------
+    
     df_app = df_app.merge(bureau_agg, on='SK_ID_CURR', how='left')
-    print(f"Bureau Features listas. DF shape: {df_app.shape}")
+    
+    # Liberar memoria
+    del bureau, bureau_agg; gc.collect()
+    
+    print(f"Bureau Features añadidas. DF_App shape: {df_app.shape}")
     return df_app
 
-def get_previous_application_features(df_app):
-    """Procesa previous_application.csv."""
-    
-    print("Iniciando Ingeniería de Solicitudes Previas...")
-    prev = pd.read_csv('previous_application.csv')
+# ==========================================================
+# 📌 FUNCIÓN CLAVE: INGENIERÍA DE FEATURES DE SOLICITUDES PREVIAS
+# (Estructura de ejemplo, debes completarla)
+# ==========================================================
 
-    # Ingeniería de Features: crear ratios importantes antes de agregar
-    prev['APP_CREDIT_PER_ANNUITY'] = prev['AMT_APPLICATION'] / prev['AMT_ANNUITY']
+def get_prev_app_features(df_app):
+    """Procesa previous_application.parquet y lo agrega por cliente (SK_ID_CURR)."""
     
-    # Agrupar por cliente (SK_ID_CURR)
-    prev_agg = aggregate_dataframe(prev, ['SK_ID_CURR'], 'PREV')
+    print("\n--- Iniciando Ingeniería de Solicitudes Previas ---")
+    prev = load_parquet_file('previous_application.parquet')
     
+    # Ingeniería de Features: Ratios importantes
+    prev['CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_APPLICATION'] / (prev['AMT_ANNUITY'] + 0.0001)
+    
+    # Agregación por cliente (SK_ID_CURR)
+    prev_agg = aggregate_dataframe(prev, 'SK_ID_CURR', 'PREV')
+    
+    # Unión al DataFrame Principal
     df_app = df_app.merge(prev_agg, on='SK_ID_CURR', how='left')
-    print(f"Previous App Features listas. DF shape: {df_app.shape}")
+    
+    del prev, prev_agg; gc.collect()
+    print(f"Previous App Features añadidas. DF_App shape: {df_app.shape}")
     return df_app
 
-# --- Flujo Principal ---
+
+# ==========================================================
+# 📌 FLUJO PRINCIPAL DE INGENIERÍA
+# ==========================================================
 
 def run_feature_engineering_pipeline():
-    # 1. Cargar datos principales
-    df_app_train = pd.read_csv('application_train.csv')
-    df_app_test = pd.read_csv('application_test.csv') # También procesamos el set de prueba
+    # Cargar la tabla principal
+    df_app = load_parquet_file('application_.parquet')
     
-    # Concatenar para asegurar consistencia en el preprocesamiento
-    df_app = pd.concat([df_app_train, df_app_test], ignore_index=True, sort=False)
-    
-    # 2. Integrar Múltiples Fuentes de Datos
-    
-    # A. Integrar Buró de Crédito
+    if df_app is None:
+        print("No se pudo iniciar el pipeline: La tabla principal es nula.")
+        return
+
+    # 1. Integrar Features de Buró
     df_app = get_bureau_features(df_app)
     
-    # B. Integrar Solicitudes Previas
-    df_app = get_previous_application_features(df_app)
+    # 2. Integrar Features de Solicitudes Previas
+    df_app = get_prev_app_features(df_app)
+    
+    # 3. Integrar el resto de tablas (Instalments, POS_CASH, Credit_Card...)
+    # df_app = get_installments_features(df_app) 
+    # df_app = get_credit_card_features(df_app) 
 
-    # C. Aquí se agregarían las otras tablas (POS_CASH, INSTALLMENTS, etc.)
-    # ... df_app = get_installments_features(df_app)
-    # ... df_app = get_pos_cash_features(df_app)
-    
     print("-" * 50)
-    print(f"Dataset final con alta dimensionalidad: {df_app.shape} características.") [cite: 38]
+    print(f"✅ PIPELINE COMPLETADO. Dataset Maestro Final Shape: {df_app.shape}")
     print("-" * 50)
     
-    # Separar en Train y Test nuevamente y guardar
-    df_train_final = df_app[df_app['TARGET'].notna()]
-    df_test_final = df_app[df_app['TARGET'].isna()]
-    
-    df_train_final.to_csv('../artifacts/master_train_features.csv', index=False)
-    df_test_final.to_csv('../artifacts/master_test_features.csv', index=False)
-    
-    print("Archivos de características maestras guardados en /artifacts.")
+    # 💾 Guardar el resultado en artifacts para la siguiente fase
+    # Se recomienda guardar el dataframe maestro (con TARGET, SK_ID_CURR, y las nuevas features)
+    df_app.to_csv('../artifacts/master_train_features.csv', index=False)
+    print("Archivo maestro guardado en artifacts/master_train_features.csv")
+
 
 if __name__ == "__main__":
+    # La ruta de los datos debe estar configurada en DATA_PATH arriba
     run_feature_engineering_pipeline()

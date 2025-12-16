@@ -6,7 +6,7 @@ import seaborn as sns
 #tener instalado el codigo de arriba
 
 # Define la ruta a tus archivos (ajusta si es necesario)
-DATA_PATH = './' 
+DATA_PATH = './data/' 
 
 def load_and_inspect_data(filename):
     """Carga un archivo parquet y muestra su información clave."""
@@ -33,4 +33,4 @@ def load_and_inspect_data(filename):
         return None
 
 # Cargar y visualizar el archivo principal
-df_app = load_and_inspect_data('application_parquet')
+df_app = load_and_inspect_data('application_.parquet')

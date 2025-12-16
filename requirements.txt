@@ -2,6 +2,8 @@ pip install pandas pyarrow
 # o si prefieres fastparquet:
 # pip install pandas fastparquet
 
+#Dejar los archivos de las tablas en la carpeta data
+
 # LIBRERÍAS FUNDAMENTALES PARA MANEJO DE DATOS
 pandas>=2.0.0          # Manipulación y análisis de datos
 numpy>=1.24.0          # Soporte para arrays y operaciones numéricas
