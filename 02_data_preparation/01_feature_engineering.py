@@ -27,19 +27,23 @@ def load_parquet_file(filename):
 def aggregate_dataframe(df, group_var, prefix):
     """Calcula agregaciones básicas (mean, max, min, sum, count) para un DF por grupo."""
     
-    # 1. Agregaciones Numéricas
-    # Excluimos la variable de agrupación
-    num_df = df.select_dtypes(include=np.number).drop(columns=[group_var], errors='ignore')
-    agg_num = num_df.groupby(group_var).agg(['mean', 'max', 'min', 'sum', 'count'])
+    # Asegurarse de que la variable de agrupación sea la primera columna
+    
+    # 1. Crear el objeto GroupBy
+    # Asegúrate de que df contiene group_var, si no, fallará.
+    df_groups = df.groupby(group_var) 
+    
+    # 2. Seleccionar columnas NUMÉRICAS para AGREGAR (excluyendo la ID de agrupación)
+    agg_cols = [col for col in df.select_dtypes(include=np.number).columns if col != group_var]
+    
+    # 3. Calcular las agregaciones
+    agg_num = df_groups[agg_cols].agg(['mean', 'max', 'min', 'sum', 'count'])
     
     # Aplanar y renombrar las columnas
     agg_num.columns = [prefix + '_' + '_'.join(col).strip().upper() 
                        for col in agg_num.columns.values]
     
-    # 2. Agregaciones Categóricas (Opcional, se puede hacer con One-Hot Encoding del DF original)
-    # Aquí solo nos centramos en las numéricas para simplificar el flujo.
-    
-    return agg_num.reset_index()
+    return agg_num.reset_index() # Aquí group_var se convierte en una columna nuevamente
 
 
 # ==========================================================
@@ -150,7 +154,7 @@ def run_feature_engineering_pipeline():
     
     # 💾 Guardar el resultado en artifacts para la siguiente fase
     # Se recomienda guardar el dataframe maestro (con TARGET, SK_ID_CURR, y las nuevas features)
-    df_app.to_csv('../artifacts/master_train_features.csv', index=False)
+    df_app.to_csv('./artifacts/master_train_features.csv', index=False)
     print("Archivo maestro guardado en artifacts/master_train_features.csv")
 
 
