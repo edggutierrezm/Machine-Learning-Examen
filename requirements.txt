@@ -4,6 +4,8 @@ pip install pandas pyarrow
 pip install matplotlib
 # Instala seaborn
 pip install seaborn
+# Instala  scikit
+pip install scikit-learn
 
 #Dejar los archivos de las tablas en la carpeta data
 
