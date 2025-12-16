@@ -1,6 +1,9 @@
+# Instala pandas pyarrow
 pip install pandas pyarrow
-# o si prefieres fastparquet:
-# pip install pandas fastparquet
+# Instala Matplotlib
+pip install matplotlib
+# Instala seaborn
+pip install seaborn
 
 #Dejar los archivos de las tablas en la carpeta data
 
@@ -21,4 +24,4 @@ Flask>=3.0.0           # Framework web ligero para la API [cite: 23, 24]
 gunicorn>=21.2.0       # Servidor WSGI para despliegues en producción (opcional, pero buena práctica)
 
 # LIBRERÍAS ADICIONALES
-joblib>=1.3.0          # Para guardar y cargar modelos/scalers (.pkl) [cite: 19]
+joblib>=1.3.0          # Para guardar y cargar modelos/scalers (.pkl) [cite: 19]
