@@ -8,6 +8,10 @@ pip install seaborn
 pip install scikit-learn
 # Instala lightgbm
 pip install lightgbm
+# Instala Flask
+pip install Flask
+# Instala requests
+pip install requests
 
 #Dejar los archivos de las tablas en la carpeta data
 
