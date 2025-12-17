@@ -1,3 +1,4 @@
+# Import dependencias
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -6,10 +7,8 @@ from joblib import dump, load
 import os
 import gc
 
-# ==========================================================
-# 📌 CONFIGURACIÓN DE RUTAS
-# ==========================================================
-# Las rutas son relativas a la carpeta 02_data_preparation
+
+# CONFIGURACIÓN DE RUTAS
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), '../artifacts')
 MASTER_FILE = os.path.join(ARTIFACTS_PATH, 'master_train_features.csv')
 
@@ -60,7 +59,7 @@ def run_preprocessing():
     # Reconvertir a DataFrame para mantener nombres de columnas
     X_processed = pd.DataFrame(X_scaled, columns=X.columns, index=X.index)
 
-    # 💾 Guardar el Scaler (ESENCIAL para el Despliegue en Fase 5)
+    #Guardar el Scaler (ESENCIAL para el Despliegue en Fase 5)
     dump(scaler, os.path.join(ARTIFACTS_PATH, 'scaler.pkl'))
     print(f"Scaler guardado en {ARTIFACTS_PATH}/scaler.pkl")
 

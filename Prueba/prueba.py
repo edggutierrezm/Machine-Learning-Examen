@@ -1,3 +1,4 @@
+# Import dependencias
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -5,7 +6,7 @@ import seaborn as sns
 #pip install pandas pyarrow
 #tener instalado el codigo de arriba
 
-# Define la ruta a tus archivos (ajusta si es necesario)
+# Define la ruta a tus archivos
 DATA_PATH = './data/' 
 
 def load_and_inspect_data(filename):

@@ -1,3 +1,4 @@
+# Import dependencias
 import pandas as pd
 import lightgbm as lgb
 from joblib import dump
@@ -7,10 +8,8 @@ import os
 import numpy as np
 import gc
 
-# ==========================================================
-# 📌 CONFIGURACIÓN DE RUTAS
-# ==========================================================
-# Las rutas son relativas a la carpeta 03_modeling
+
+# CONFIGURACIÓN DE RUTAS
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), '../artifacts')
 TRAIN_FILE = os.path.join(ARTIFACTS_PATH, 'X_final_train.csv')
 
@@ -32,9 +31,8 @@ def load_processed_data():
         print(f"Error al cargar datos: {e}")
         return None, None
 
-# ==========================================================
-# 📌 FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (AÑADIDA)
-# ==========================================================
+
+# FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (AÑADIDA)
 def clean_feature_names(df):
     """Limpia los nombres de las columnas para eliminar caracteres no soportados por LightGBM."""
     new_cols = []
@@ -55,7 +53,7 @@ def run_model_training():
     if X is None:
         return
 
-    # 📌 APLICAR LIMPIEZA: Limpiar los nombres de las columnas antes de pasarlos a LightGBM
+    # APLICAR LIMPIEZA: Limpiar los nombres de las columnas antes de pasarlos a LightGBM
     X = clean_feature_names(X) 
 
     # Parámetros del modelo LightGBM (Optimizados para AUC y desbalance)
@@ -91,10 +89,10 @@ def run_model_training():
         X_valid, y_valid = X.iloc[valid_idx], y.iloc[valid_idx]
 
         # Entrenar el modelo con Early Stopping
-        # 🚨 MODIFICACIÓN CLAVE: Reducir stopping_rounds de 500 a 50 para acelerar la finalización
+        # Se utiliza para demostrar que el modelo va avanzando se utilizo en 500 o 50
         lgb_clf.fit(X_train, y_train, 
                     eval_set=[(X_valid, y_valid)],
-                    callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=10)], 
+                    callbacks=[lgb.early_stopping(stopping_rounds=500, verbose=10)], 
                     eval_metric='auc')
         
         # Realizar predicciones OOF
@@ -110,7 +108,7 @@ def run_model_training():
     print(f"✅ AUC OOF FINAL (Modelo Campeón): {final_auc:.4f}")
     print("=" * 50)
 
-    # 💾 Guardar el último modelo entrenado
+    # Guardar el último modelo entrenado
     dump(lgb_clf, os.path.join(ARTIFACTS_PATH, 'champion_model.pkl'))
     print(f"\nModelo Campeón (LightGBM) guardado en artifacts/champion_model.pkl")
 

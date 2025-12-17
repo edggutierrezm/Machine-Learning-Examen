@@ -1,3 +1,4 @@
+# Import dependencias
 import pandas as pd
 import numpy as np
 from joblib import load
@@ -6,18 +7,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-# --- Configuración de Rutas ---
-# Nota: Las rutas son relativas a la carpeta 04_evaluation, por eso usamos '../artifacts'
+# CONFIGURACIÓN DE RUTAS
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), '../artifacts')
 MODEL_PATH = os.path.join(ARTIFACTS_PATH, 'champion_model.pkl')
 X_TEST_FILE = os.path.join(ARTIFACTS_PATH, 'X_final_test.csv')
 Y_TEST_FILE = os.path.join(ARTIFACTS_PATH, 'y_final_test.csv')
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), '../reports')
 
-# ==========================================================
-# 📌 FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (CLAVE)
-# ==========================================================
-# Reutilizamos la función de limpieza EXACTA que usamos en la Fase 3.
+
+# FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (CLAVE)
 def clean_feature_names(df):
     """Limpia los nombres de las columnas para eliminar caracteres no soportados por LightGBM."""
     new_cols = []
@@ -99,7 +97,7 @@ def run_evaluation():
     y_pred = (y_probs > 0.5).astype(int) 
 
     print("\n" + "=" * 50)
-    print("📊 RESULTADOS DE LA EVALUACIÓN FINAL")
+    print("RESULTADOS DE LA EVALUACIÓN FINAL")
     print("=" * 50)
     print(f"✅ Área Bajo la Curva ROC (AUC en Test): {auc_score:.4f}")
     print("\n--- Reporte de Clasificación (Threshold=0.5) ---")
@@ -110,5 +108,4 @@ def run_evaluation():
     plot_roc_curve(y_test, y_probs, auc_score)
     
 if __name__ == "__main__":
-    # Asegúrate de instalar seaborn y matplotlib: pip install seaborn matplotlib
     run_evaluation()

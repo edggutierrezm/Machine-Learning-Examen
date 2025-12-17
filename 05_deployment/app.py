@@ -1,21 +1,17 @@
+# Import dependencias
 import pandas as pd
 import numpy as np
 from joblib import load
 from flask import Flask, request, jsonify
 import os
 
-# ==========================================================
-# 📌 CONFIGURACIÓN DE RUTAS Y CARGA DE ARTEFACTOS
-# ==========================================================
+# CONFIGURACIÓN DE RUTAS Y CARGA DE ARTEFACTOS
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), '../artifacts')
 
 MODEL_PATH = os.path.join(ARTIFACTS_PATH, 'champion_model.pkl')
 SCALER_PATH = os.path.join(ARTIFACTS_PATH, 'scaler.pkl')
 
-# ==========================================================
-# 📌 FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (AÑADIDA)
-# ==========================================================
-# Es esencial que esta función sea EXACTAMENTE la misma que se usó en la Fase 3
+# FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (AÑADIDA)
 def clean_feature_names(df):
     """Limpia los nombres de las columnas para eliminar caracteres no soportados por LightGBM."""
     new_cols = []
@@ -29,13 +25,12 @@ def clean_feature_names(df):
     return df
 # ==========================================================
 
-
 try:
     # 1. Cargar el Modelo Campeón (LightGBM)
     MODEL = load(MODEL_PATH)
     # 2. Cargar el Escalador (MinMaxScaler)
     SCALER = load(SCALER_PATH)
-    print("✅ Artefactos de despliegue cargados: Modelo y Escalador.")
+    print("Artefactos de despliegue cargados: Modelo y Escalador.")
 except FileNotFoundError:
     print(f"ERROR: No se encontraron los artefactos en {ARTIFACTS_PATH}. Asegúrate de ejecutar Fases 2 y 3.")
     MODEL = None
@@ -45,12 +40,12 @@ except FileNotFoundError:
 try:
     X_train = pd.read_csv(os.path.join(ARTIFACTS_PATH, 'X_final_train.csv'))
     
-    # 🚨 CLAVE: Limpiar los nombres de las columnas del DF de entrenamiento
+    # CLAVE: Limpiar los nombres de las columnas del DF de entrenamiento
     # Esto asegura que la lista de nombres que obtenemos sea la que LightGBM espera.
     X_train_processed = clean_feature_names(X_train.drop(columns=['TARGET'])) 
     CLEANED_FEATURE_NAMES = list(X_train_processed.columns)
     
-    print(f"✅ Lista de características finales cargada ({len(CLEANED_FEATURE_NAMES)} features).")
+    print(f"Lista de características finales cargada ({len(CLEANED_FEATURE_NAMES)} features).")
     
     # Limpieza de memoria
     del X_train, X_train_processed; 
@@ -58,10 +53,7 @@ except FileNotFoundError:
     print("ERROR: No se encontró X_final_train.csv. No se puede obtener la lista de features.")
     CLEANED_FEATURE_NAMES = []
     
-    
-# ==========================================================
 # 📌 API FLASK
-# ==========================================================
 app = Flask(__name__)
 
 @app.route('/predict', methods=['POST'])
@@ -76,7 +68,7 @@ def predict():
         # 2. Crear un DataFrame con los datos recibidos (simulando 1 fila)
         new_client_data = pd.DataFrame(data, index=[0])
         
-        # 🚨 CLAVE 2: Limpiar los nombres de las columnas de entrada
+        # CLAVE 2: Limpiar los nombres de las columnas de entrada
         new_client_data = clean_feature_names(new_client_data)
         
         # 3. Asegurar que el DataFrame tiene la misma estructura que el entrenamiento
