@@ -7,24 +7,42 @@ import seaborn as sns
 import os
 
 # --- Configuración de Rutas ---
-# Nota: La ruta de los artefactos es relativa a la carpeta 04_evaluation
+# Nota: Las rutas son relativas a la carpeta 04_evaluation, por eso usamos '../artifacts'
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), '../artifacts')
 MODEL_PATH = os.path.join(ARTIFACTS_PATH, 'champion_model.pkl')
-DATA_PATH = os.path.join(ARTIFACTS_PATH, 'master_train_features.csv') # Usamos el set de entrenamiento maestro
+X_TEST_FILE = os.path.join(ARTIFACTS_PATH, 'X_final_test.csv')
+Y_TEST_FILE = os.path.join(ARTIFACTS_PATH, 'y_final_test.csv')
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), '../reports')
+
+# ==========================================================
+# 📌 FUNCIÓN DE LIMPIEZA DE NOMBRES DE COLUMNA (CLAVE)
+# ==========================================================
+# Reutilizamos la función de limpieza EXACTA que usamos en la Fase 3.
+def clean_feature_names(df):
+    """Limpia los nombres de las columnas para eliminar caracteres no soportados por LightGBM."""
+    new_cols = []
+    for col in df.columns:
+        # Reemplaza corchetes, comas, dos puntos, <, > y otros caracteres especiales por guiones bajos
+        cleaned_col = col.replace('[', '_').replace(']', '_').replace('<', '_').replace(':', '_').replace(',', '_').replace('>', '_')
+        cleaned_col = cleaned_col.replace(' ', '_')
+        new_cols.append(cleaned_col)
+    df.columns = new_cols
+    return df
 
 def load_data_and_model():
     """Carga los datos preprocesados de prueba y el modelo campeón."""
     try:
-        # Cargamos el dataset maestro completo
-        df_master = pd.read_csv(DATA_PATH)
-        df_test = df_master[df_master['TARGET'].notna()].sample(frac=0.2, random_state=42) # Usamos un 20% como 'test' simulado
-        
-        X_test = df_test.drop(columns=['TARGET', 'SK_ID_CURR']) # Asegúrate de que las columnas coincidan
-        y_test = df_test['TARGET']
+        X_test = pd.read_csv(X_TEST_FILE)
+        y_test = pd.read_csv(Y_TEST_FILE)
         
         # Cargar el modelo
         model = load(MODEL_PATH)
-        return X_test, y_test, model
+        print("Modelo y datos de prueba cargados exitosamente.")
+        
+        # APLICAR LIMPIEZA: Es fundamental aplicar la misma limpieza de nombres al set de prueba
+        X_test = clean_feature_names(X_test)
+        
+        return X_test, y_test['TARGET'], model
     except FileNotFoundError as e:
         print(f"Error: No se encontró un archivo necesario. Asegúrate de ejecutar las Fases 2 y 3. Error: {e}")
         return None, None, None
@@ -33,21 +51,26 @@ def load_data_and_model():
         return None, None, None
 
 def plot_confusion_matrix(y_true, y_pred):
-    """Genera y muestra la Matriz de Confusión."""
+    """Genera y guarda la Matriz de Confusión."""
     cm = confusion_matrix(y_true, y_pred)
+    
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=['0: Pagó', '1: Incumplió'], yticklabels=['0: Pagó', '1: Incumplió'])
     plt.title('Matriz de Confusión')
     plt.ylabel('Etiqueta Verdadera')
     plt.xlabel('Predicción del Modelo')
-    plt.savefig('../reports/confusion_matrix.png')
-    plt.show()
+    plt.savefig(os.path.join(REPORTS_DIR, 'confusion_matrix.png'))
+    plt.show() 
+    print("Matriz de Confusión guardada en /reports/confusion_matrix.png")
 
-def plot_roc_curve(y_true, y_probs):
-    """Genera y muestra la Curva ROC."""
+def plot_roc_curve(y_true, y_probs, auc):
+    """Genera y guarda la Curva ROC."""
     fpr, tpr, thresholds = roc_curve(y_true, y_probs)
-    auc = roc_auc_score(y_true, y_probs)
+    
+    os.makedirs(REPORTS_DIR, exist_ok=True)
     
     plt.figure(figsize=(7, 6))
     plt.plot(fpr, tpr, color='orange', label=f'Curva ROC (AUC = {auc:.4f})')
@@ -56,8 +79,9 @@ def plot_roc_curve(y_true, y_probs):
     plt.ylabel('Tasa de Verdaderos Positivos (TPR)')
     plt.title('Curva ROC')
     plt.legend()
-    plt.savefig('../reports/roc_curve.png')
-    plt.show()
+    plt.savefig(os.path.join(REPORTS_DIR, 'roc_curve.png'))
+    plt.show() 
+    print("Curva ROC guardada en /reports/roc_curve.png")
 
 def run_evaluation():
     X_test, y_test, model = load_data_and_model()
@@ -65,30 +89,26 @@ def run_evaluation():
     if model is None:
         return
 
-    # Predicción de Probabilidades y Clases
+    # Predicción de Probabilidades
     y_probs = model.predict_proba(X_test)[:, 1]
+    
+    # Cálculo de Métricas
+    auc_score = roc_auc_score(y_test, y_probs)
     
     # Usamos un umbral para la clasificación binaria (ej. 0.5)
     y_pred = (y_probs > 0.5).astype(int) 
 
-    # 1. Cálculo de Métricas
-    auc_score = roc_auc_score(y_test, y_probs)
-    
-    print("=" * 50)
+    print("\n" + "=" * 50)
     print("📊 RESULTADOS DE LA EVALUACIÓN FINAL")
     print("=" * 50)
-    print(f"✅ Área Bajo la Curva ROC (AUC): {auc_score:.4f}")
+    print(f"✅ Área Bajo la Curva ROC (AUC en Test): {auc_score:.4f}")
     print("\n--- Reporte de Clasificación (Threshold=0.5) ---")
     print(classification_report(y_test, y_pred))
 
     # 2. Generación de Visualizaciones
-    # Asegurarse de crear la carpeta reports
-    os.makedirs('../reports', exist_ok=True)
-    
     plot_confusion_matrix(y_test, y_pred)
-    plot_roc_curve(y_test, y_probs)
+    plot_roc_curve(y_test, y_probs, auc_score)
     
-    print("\nVisualizaciones (Matriz de Confusión, Curva ROC) guardadas en la carpeta /reports.")
-
 if __name__ == "__main__":
+    # Asegúrate de instalar seaborn y matplotlib: pip install seaborn matplotlib
     run_evaluation()

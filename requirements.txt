@@ -6,6 +6,8 @@ pip install matplotlib
 pip install seaborn
 # Instala  scikit
 pip install scikit-learn
+# Instala lightgbm
+pip install lightgbm
 
 #Dejar los archivos de las tablas en la carpeta data
 
